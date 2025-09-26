@@ -9,20 +9,15 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .csrf(csrf -> csrf.disable()) // API için CSRF kapalı
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().authenticated()
+                        .requestMatchers("/login/oauth2/code/google").permitAll() // Google login endpoint serbest
+                        .anyRequest().permitAll() // Geliştirme aşaması için hepsi serbest
                 )
-                .oauth2Login(oauth2 -> oauth2
-                        .defaultSuccessUrl("/home", true) // login sonrası yönlendirme
-                )
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
-                );
+                .formLogin(form -> form.disable())
+                .oauth2Login(oauth -> oauth.disable());
 
         return http.build();
     }
