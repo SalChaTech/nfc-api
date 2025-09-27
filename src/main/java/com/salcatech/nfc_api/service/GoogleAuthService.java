@@ -61,15 +61,14 @@ public class GoogleAuthService {
 
         HttpEntity<String> userEntity = new HttpEntity<>(userHeaders);
 
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        ResponseEntity<Map> userInfoResponse = restTemplate.exchange(
+        @SuppressWarnings("unchecked")
+        ResponseEntity<Map<String, Object>> userInfoResponse = restTemplate.exchange(
                 "https://www.googleapis.com/oauth2/v2/userinfo",
                 HttpMethod.GET,
                 userEntity,
-                Map.class
+                (Class<Map<String, Object>>) (Class<?>) Map.class
         );
 
-        @SuppressWarnings("unchecked")
         Map<String, Object> userInfo = userInfoResponse.getBody();
         return userInfo;
     }
