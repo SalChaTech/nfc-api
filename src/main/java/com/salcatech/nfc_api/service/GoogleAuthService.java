@@ -70,6 +70,10 @@ public class GoogleAuthService {
         );
 
         Map<String, Object> userInfo = userInfoResponse.getBody();
+        
+        // Access token'ı da userInfo'ya ekle
+        userInfo.put("access_token", accessToken);
+        
         return userInfo;
     }
 }

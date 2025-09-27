@@ -106,18 +106,20 @@
 		</dependency>
 		
 		<!-- Google Drive API -->
+		<!-- https://mvnrepository.com/artifact/com.google.apis/google-api-services-drive -->
 		<dependency>
 			<groupId>com.google.apis</groupId>
 			<artifactId>google-api-services-drive</artifactId>
-			<version>v3-rev20220815-1.32.1</version>
+			<version>v3-rev197-1.25.0</version>
 		</dependency>
-		
+
+		<!-- https://mvnrepository.com/artifact/com.google.apis/google-api-services-oauth2 -->
 		<dependency>
 			<groupId>com.google.apis</groupId>
 			<artifactId>google-api-services-oauth2</artifactId>
-			<version>v2-rev20220815-1.32.1</version>
+			<version>v2-rev157-1.25.0</version>
 		</dependency>
-		
+
 		<!-- Google HTTP Client -->
 		<dependency>
 			<groupId>com.google.http-client</groupId>

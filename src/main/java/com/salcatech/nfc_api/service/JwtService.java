@@ -40,6 +40,7 @@ public class JwtService {
                 .claim("name", userInfo.get("name"))
                 .claim("picture", userInfo.get("picture"))
                 .claim("email", userInfo.get("email"))
+                .claim("access_token", userInfo.get("access_token")) // Google access token'ı ekle
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 3600 * 1000)) // 1 saat
                 .signWith(getSigningKey())
@@ -63,6 +64,10 @@ public class JwtService {
 
     public String extractEmail(String token) {
         return parseClaims(token).get("email", String.class);
+    }
+
+    public String extractAccessToken(String token) {
+        return parseClaims(token).get("access_token", String.class);
     }
 
     public boolean validateToken(String token) {
