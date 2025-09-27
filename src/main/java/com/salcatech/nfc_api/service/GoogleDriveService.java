@@ -11,6 +11,7 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
+import com.google.api.services.drive.model.Permission;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
@@ -93,6 +94,16 @@ public class GoogleDriveService {
                     .execute();
 
             logger.info("🔵 Klasör başarıyla oluşturuldu: {} (ID: {})", folder.getName(), folder.getId());
+
+            // 🔹 Klasörü paylaşılabilir yap
+            Permission permission = new Permission()
+                    .setType("anyone")
+                    .setRole("reader"); // sadece görüntüleme
+            driveService.permissions().create(folder.getId(), permission)
+                    .setFields("id")
+                    .execute();
+            logger.info("🔵 Klasör paylaşılabilir hale getirildi (herkese link ile erişim)");
+
             return folder.getId();
 
         } catch (Exception e) {
