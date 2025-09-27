@@ -58,9 +58,10 @@ public class AuthController {
             response.addCookie(cookie);
             logger.info("🔵 Cookie eklendi: jwt={}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
 
-            // Frontend'e sade user info dön
-            logger.info("🔵 Frontend'e user info dönülüyor: {}", userInfo);
-            return ResponseEntity.ok(userInfo);
+            // Frontend'e redirect yap
+            logger.info("🔵 Frontend'e redirect yapılıyor...");
+            response.sendRedirect("http://localhost:5173/profile");
+            return null;
         } catch (Exception e) {
             logger.error("🔴 Google OAuth callback hatası: ", e);
             return ResponseEntity.status(500).body("OAuth callback error: " + e.getMessage());
