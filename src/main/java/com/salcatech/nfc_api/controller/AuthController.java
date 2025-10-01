@@ -40,7 +40,7 @@ public class AuthController {
     public void redirectToGoogle(HttpServletResponse response) throws IOException {
         String googleOauthUrl = "https://accounts.google.com/o/oauth2/v2/auth" +
                 "?client_id=" + clientId +
-                "&redirect_uri=" + "http://localhost:8080/auth/callback" +   // örn: http://localhost:8080/auth/callback
+                "&redirect_uri=" + "http://localhost:5173/auth/callback" +   // örn: http://localhost:8080/auth/callback
                 "&response_type=code" +
                 "&scope=openid email profile";
         response.sendRedirect(googleOauthUrl);
@@ -77,10 +77,14 @@ public class AuthController {
             response.addCookie(cookie);
             logger.info("🔵 Cookie eklendi: jwt={}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
 
+            return ResponseEntity.ok(Map.of(
+                    "jwt", jwt,
+                    "user", userInfo
+            ));
             // Frontend'e redirect yap
-            logger.info("🔵 Frontend'e redirect yapılıyor...");
-            response.sendRedirect("http://localhost:5173/upload/123");
-            return null;
+//            logger.info("🔵 Frontend'e redirect yapılıyor...");
+//            response.sendRedirect("http://localhost:5173/upload/123");
+//            return null;
         } catch (Exception e) {
             logger.error("🔴 Google OAuth callback hatası: ", e);
             return ResponseEntity.status(500).body("OAuth callback error: " + e.getMessage());
