@@ -1,0 +1,19 @@
+CREATE TABLE users (
+                       user_id SERIAL PRIMARY KEY,        -- Otomatik artan ve unique
+                       email VARCHAR(255) NOT NULL UNIQUE, -- Unique olacak
+                       drive_link TEXT
+);
+
+
+
+
+CREATE TABLE wedding_memory (
+    id SERIAL PRIMARY KEY,       -- otomatik artan benzersiz ID
+    user_id INT NOT NULL,        -- users tablosundaki user_id’ye bağlı
+    male_name VARCHAR(255),      -- erkek isim
+    female_name VARCHAR(255),    -- kadın isim
+    date DATE,                   -- tarih alanı
+    CONSTRAINT fk_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+        ON DELETE CASCADE
+);

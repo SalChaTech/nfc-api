@@ -5,12 +5,14 @@ import com.salcatech.nfc_api.service.JwtService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -27,6 +29,23 @@ public class AuthController {
         this.googleAuthService = googleAuthService;
         this.jwtService = jwtService;
     }
+
+    @Value("${google.client.id}")
+    private String clientId;
+
+    @Value("${google.client.secret}")
+    private String clientSecret;
+
+    @GetMapping("/google")
+    public void redirectToGoogle(HttpServletResponse response) throws IOException {
+        String googleOauthUrl = "https://accounts.google.com/o/oauth2/v2/auth" +
+                "?client_id=" + clientId +
+                "&redirect_uri=" + "http://localhost:8080/auth/callback" +   // örn: http://localhost:8080/auth/callback
+                "&response_type=code" +
+                "&scope=openid email profile";
+        response.sendRedirect(googleOauthUrl);
+    }
+
 
     @GetMapping("/callback")
     public ResponseEntity<?> googleCallback(
@@ -60,7 +79,7 @@ public class AuthController {
 
             // Frontend'e redirect yap
             logger.info("🔵 Frontend'e redirect yapılıyor...");
-            response.sendRedirect("http://localhost:5173/profile");
+            response.sendRedirect("http://localhost:5173/upload/123");
             return null;
         } catch (Exception e) {
             logger.error("🔴 Google OAuth callback hatası: ", e);
