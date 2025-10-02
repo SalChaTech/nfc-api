@@ -116,7 +116,7 @@ public class GoogleDriveService {
     /**
      * Dosya yükleme (Gerçek Google Drive API) - Uygulama klasörüne
      */
-    public Map<String, Object> uploadFile(String accessToken, java.io.File file, String fileName, String mimeType) {
+    public Map<String, Object> uploadFile(String accessToken, java.io.File file, String fileName, String mimeType, String fileId) {
         try {
             logger.info("🔵 Google Drive'a dosya yükleniyor: {}", fileName);
             logger.info("🔵 Dosya boyutu: {} bytes", file.length());
@@ -128,28 +128,41 @@ public class GoogleDriveService {
             String folderId = getOrCreateAppFolder(accessToken);
             logger.info("🔵 Dosya klasöre yüklenecek: {}", folderId);
 
-            File fileMetadata = new File();
-            fileMetadata.setName(fileName);
-            fileMetadata.setParents(Collections.singletonList(folderId)); // Klasöre yükle
+            File uploadedFile;
 
-            FileContent mediaContent = new FileContent(mimeType, file);
+            if (fileId != null && !fileId.isEmpty()) {
+                // --- Var olan dosyayı güncelle (overwrite) ---
+                FileContent mediaContent = new FileContent(mimeType, file);
 
-            File uploadedFile = driveService.files().create(fileMetadata, mediaContent)
-                    .setFields("id,name,size,webViewLink,createdTime")
-                    .execute();
+                // Update sırasında parent göndermiyoruz
+                uploadedFile = driveService.files().update(fileId, null, mediaContent)
+                        .setFields("id,name,size,webViewLink,modifiedTime")
+                        .execute();
 
-            logger.info("🔵 Dosya başarıyla yüklendi: {}", uploadedFile.getName());
-            logger.info("🔵 Dosya ID: {}", uploadedFile.getId());
-            logger.info("🔵 Dosya boyutu: {} bytes", uploadedFile.getSize());
-            logger.info("🔵 Dosya linki: {}", uploadedFile.getWebViewLink());
+                logger.info("🔵 Dosya güncellendi: {}", uploadedFile.getName());
+            } else {
+                // --- Yeni dosya oluştur ---
+                File fileMetadata = new File();
+                fileMetadata.setName(fileName);
+                fileMetadata.setParents(Collections.singletonList(folderId)); // sadece create'de kullan
+
+                FileContent mediaContent = new FileContent(mimeType, file);
+
+                uploadedFile = driveService.files().create(fileMetadata, mediaContent)
+                        .setFields("id,name,size,webViewLink,createdTime")
+                        .execute();
+
+                logger.info("🔵 Dosya başarıyla yüklendi: {}", uploadedFile.getName());
+            }
 
             return Map.of(
-                "id", uploadedFile.getId(),
-                "name", uploadedFile.getName(),
-                "size", uploadedFile.getSize() != null ? uploadedFile.getSize() : 0,
-                "webViewLink", uploadedFile.getWebViewLink() != null ? uploadedFile.getWebViewLink() : "",
-                "createdTime", uploadedFile.getCreatedTime() != null ? uploadedFile.getCreatedTime().toString() : "",
-                "mimeType", mimeType
+                    "id", uploadedFile.getId(),
+                    "name", uploadedFile.getName(),
+                    "size", uploadedFile.getSize() != null ? uploadedFile.getSize() : 0,
+                    "webViewLink", uploadedFile.getWebViewLink() != null ? uploadedFile.getWebViewLink() : "",
+                    "time", uploadedFile.getCreatedTime() != null ? uploadedFile.getCreatedTime().toString() :
+                            uploadedFile.getModifiedTime() != null ? uploadedFile.getModifiedTime().toString() : "",
+                    "mimeType", mimeType
             );
 
         } catch (Exception e) {
@@ -157,6 +170,7 @@ public class GoogleDriveService {
             throw new RuntimeException("Dosya yükleme hatası: " + e.getMessage());
         }
     }
+
 
     /**
      * Uygulama klasöründeki dosyaları listele (Gerçek Google Drive API)

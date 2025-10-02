@@ -36,6 +36,7 @@ public class DriveController {
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "fileId", required = false) String fileId, // yeni
             HttpServletRequest request
     ) {
         logger.info("🔵 Dosya yükleme isteği alındı: {}", file.getOriginalFilename());
@@ -64,7 +65,8 @@ public class DriveController {
                 accessToken,
                 tempFile,
                 file.getOriginalFilename(),
-                file.getContentType()
+                file.getContentType(),
+                    fileId
             );
 
             // Geçici dosyayı sil

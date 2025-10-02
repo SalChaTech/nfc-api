@@ -42,7 +42,7 @@ public class AuthController {
                 "?client_id=" + clientId +
                 "&redirect_uri=" + "http://localhost:5173/auth/callback" +   // örn: http://localhost:8080/auth/callback
                 "&response_type=code" +
-                "&scope=openid email profile";
+                "&scope=openid email profile https://www.googleapis.com/auth/drive.file";
         response.sendRedirect(googleOauthUrl);
     }
 
