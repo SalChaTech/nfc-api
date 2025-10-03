@@ -50,7 +50,7 @@ public class GoogleDriveService {
         logger.info("🔵 Google Drive service oluşturuluyor...");
 
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        
+
         Credential credential = new GoogleCredential()
                 .setAccessToken(accessToken);
 
@@ -62,7 +62,7 @@ public class GoogleDriveService {
     /**
      * Uygulama klasörünü oluşturur veya mevcut olanı bulur
      */
-    public String getOrCreateAppFolder(String accessToken) {
+    public String getOrCreateAppFolder(String accessToken, boolean toUploadSubfolder) {
         try {
             logger.info("🔵 Uygulama klasörü aranıyor: {}", APP_FOLDER_NAME);
 
@@ -75,16 +75,22 @@ public class GoogleDriveService {
                     .execute();
 
             List<File> folders = result.getFiles();
-            
+
             if (!folders.isEmpty()) {
                 String folderId = folders.get(0).getId();
                 logger.info("🔵 Mevcut klasör bulundu: {} (ID: {})", APP_FOLDER_NAME, folderId);
+
+                // Alt klasör (Gallery) kontrolü, eğer true ise oluştur
+                if (toUploadSubfolder) {
+                    return getOrCreateGalleryFolder(driveService, folderId);
+                }
+
                 return folderId;
             }
 
             // Klasör yoksa oluştur
             logger.info("🔵 Yeni klasör oluşturuluyor: {}", APP_FOLDER_NAME);
-            
+
             File folderMetadata = new File();
             folderMetadata.setName(APP_FOLDER_NAME);
             folderMetadata.setMimeType("application/vnd.google-apps.folder");
@@ -104,6 +110,11 @@ public class GoogleDriveService {
                     .execute();
             logger.info("🔵 Klasör paylaşılabilir hale getirildi (herkese link ile erişim)");
 
+            // Alt klasör (Gallery) oluşturulacaksa
+            if (toUploadSubfolder) {
+                return getOrCreateGalleryFolder(driveService, folder.getId());
+            }
+
             return folder.getId();
 
         } catch (Exception e) {
@@ -112,11 +123,47 @@ public class GoogleDriveService {
         }
     }
 
+    private String getOrCreateGalleryFolder(Drive driveService, String parentFolderId) {
+        try {
+            // Gallery klasörünü arıyoruz
+            FileList result = driveService.files().list()
+                    .setQ("name='Gallery' and mimeType='application/vnd.google-apps.folder' and trashed=false and '" + parentFolderId + "' in parents")
+                    .setFields("files(id,name)")
+                    .execute();
+
+            List<File> folders = result.getFiles();
+
+            if (!folders.isEmpty()) {
+                String folderId = folders.get(0).getId();
+                logger.info("🔵 Gallery klasörü bulundu: {} (ID: {})", "Gallery", folderId);
+                return folderId;
+            }
+
+            // Klasör yoksa oluştur
+            logger.info("🔵 Yeni Gallery klasörü oluşturuluyor...");
+
+            File folderMetadata = new File();
+            folderMetadata.setName("Gallery");
+            folderMetadata.setMimeType("application/vnd.google-apps.folder");
+            folderMetadata.setParents(Collections.singletonList(parentFolderId));
+
+            File folder = driveService.files().create(folderMetadata)
+                    .setFields("id,name")
+                    .execute();
+
+            logger.info("🔵 Gallery klasörü başarıyla oluşturuldu: {} (ID: {})", folder.getName(), folder.getId());
+            return folder.getId();
+        } catch (Exception e) {
+            logger.error("🔴 Gallery klasörü oluşturma hatası: ", e);
+            throw new RuntimeException("Gallery klasörü oluşturma hatası: " + e.getMessage());
+        }
+    }
+
 
     /**
      * Dosya yükleme (Gerçek Google Drive API) - Uygulama klasörüne
      */
-    public Map<String, Object> uploadFile(String accessToken, java.io.File file, String fileName, String mimeType, String fileId) {
+    public Map<String, Object> uploadFile(String accessToken, java.io.File file, String fileName, String mimeType, String fileId, boolean toUploadSubfolder) {
         try {
             logger.info("🔵 Google Drive'a dosya yükleniyor: {}", fileName);
             logger.info("🔵 Dosya boyutu: {} bytes", file.length());
@@ -125,17 +172,18 @@ public class GoogleDriveService {
             Drive driveService = getDriveService(accessToken);
 
             // Uygulama klasörünü al veya oluştur
-            String folderId = getOrCreateAppFolder(accessToken);
+            String folderId = getOrCreateAppFolder(accessToken, toUploadSubfolder);
             logger.info("🔵 Dosya klasöre yüklenecek: {}", folderId);
 
             File uploadedFile;
 
-            if (fileId != null && !fileId.isEmpty()) {
+            if (fileId != null && !fileId.isEmpty() && fileId.length()!=1) {
                 // --- Var olan dosyayı güncelle (overwrite) ---
                 FileContent mediaContent = new FileContent(mimeType, file);
-
+                File fileMetadata = new File();
+                fileMetadata.setName(fileName);
                 // Update sırasında parent göndermiyoruz
-                uploadedFile = driveService.files().update(fileId, null, mediaContent)
+                uploadedFile = driveService.files().update(fileId, fileMetadata, mediaContent)
                         .setFields("id,name,size,webViewLink,modifiedTime")
                         .execute();
 
@@ -175,14 +223,14 @@ public class GoogleDriveService {
     /**
      * Uygulama klasöründeki dosyaları listele (Gerçek Google Drive API)
      */
-    public List<Map<String, Object>> listFiles(String accessToken) {
+    public List<Map<String, Object>> listFiles(String accessToken, boolean toUploadSubfolder) {
         try {
             logger.info("🔵 Uygulama klasöründeki dosyalar listeleniyor...");
 
             Drive driveService = getDriveService(accessToken);
 
             // Uygulama klasörünü al
-            String folderId = getOrCreateAppFolder(accessToken);
+            String folderId = getOrCreateAppFolder(accessToken, toUploadSubfolder);
             logger.info("🔵 Klasör ID: {}", folderId);
 
             // Sadece bu klasördeki dosyaları listele

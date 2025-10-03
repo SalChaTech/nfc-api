@@ -37,6 +37,7 @@ public class DriveController {
     public ResponseEntity<?> uploadFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "fileId", required = false) String fileId, // yeni
+            @RequestParam(value = "toUploadSubfolder", defaultValue = "false") boolean toUploadSubfolder, // yeni
             HttpServletRequest request
     ) {
         logger.info("🔵 Dosya yükleme isteği alındı: {}", file.getOriginalFilename());
@@ -66,7 +67,7 @@ public class DriveController {
                 tempFile,
                 file.getOriginalFilename(),
                 file.getContentType(),
-                    fileId
+                    fileId,toUploadSubfolder
             );
 
             // Geçici dosyayı sil
@@ -102,7 +103,7 @@ public class DriveController {
             }
 
             // Google Drive'dan dosyaları listele
-            List<Map<String, Object>> files = googleDriveService.listFiles(accessToken);
+            List<Map<String, Object>> files = googleDriveService.listFiles(accessToken,false);
 
             logger.info("🔵 {} dosya bulundu", files.size());
             return ResponseEntity.ok(files);
@@ -112,6 +113,39 @@ public class DriveController {
             return ResponseEntity.status(500).body("Dosya listeleme hatası: " + e.getMessage());
         }
     }
+
+    /**
+     * Dosyaları listele endpoint'i
+     */
+    @GetMapping("/gallery-files")
+    public ResponseEntity<?> listGalleryFiles(HttpServletRequest request) {
+        logger.info("🔵 Dosya listeleme isteği alındı");
+
+        try {
+            // JWT token'ı al
+            String jwt = getJwtFromRequest(request);
+            if (jwt == null || !jwtService.validateToken(jwt)) {
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
+
+            // JWT'den access token'ı çıkar
+            String accessToken = jwtService.extractAccessToken(jwt);
+            if (accessToken == null) {
+                return ResponseEntity.status(401).body("Access token bulunamadı");
+            }
+
+            // Google Drive'dan dosyaları listele
+            List<Map<String, Object>> files = googleDriveService.listFiles(accessToken,true);
+
+            logger.info("🔵 {} dosya bulundu", files.size());
+            return ResponseEntity.ok(files);
+
+        } catch (Exception e) {
+            logger.error("🔴 Dosya listeleme hatası: ", e);
+            return ResponseEntity.status(500).body("Dosya listeleme hatası: " + e.getMessage());
+        }
+    }
+
 
     /**
      * Dosya silme endpoint'i
