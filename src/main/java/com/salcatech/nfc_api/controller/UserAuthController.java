@@ -2,6 +2,7 @@ package com.salcatech.nfc_api.controller;
 
 import com.salcatech.nfc_api.dto.UserAuthRequest;
 import com.salcatech.nfc_api.dto.UserAuthResponse;
+import com.salcatech.nfc_api.dto.ValidateTokenRequest;
 import com.salcatech.nfc_api.model.Users;
 import com.salcatech.nfc_api.service.JwtService;
 import com.salcatech.nfc_api.service.UsersService;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/userAuth")
+@RequestMapping("/api/user-auth")
 public class UserAuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserAuthController.class);
@@ -67,15 +68,9 @@ public class UserAuthController {
     }
 
     @PostMapping("/validate-token")
-    public ResponseEntity<?> validateToken(@RequestBody TokenRequest request) {
-        logger.info("token info"+request.getToken());
+    public ResponseEntity<?> validateToken(@RequestBody ValidateTokenRequest request) {
         boolean valid = jwtService.validateToken(request.getToken());
         return ResponseEntity.ok(Map.of("valid", valid));
     }
 
-    private static class TokenRequest {
-        private String token;
-        public String getToken() { return token; }
-        public void setToken(String token) { this.token = token; }
-    }
 }

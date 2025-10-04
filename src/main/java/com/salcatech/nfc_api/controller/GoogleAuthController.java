@@ -1,6 +1,7 @@
 package com.salcatech.nfc_api.controller;
 
 import com.salcatech.nfc_api.dto.UserAuthRequest;
+import com.salcatech.nfc_api.dto.ValidateTokenRequest;
 import com.salcatech.nfc_api.service.GoogleAuthService;
 import com.salcatech.nfc_api.service.JwtService;
 import jakarta.servlet.http.Cookie;
@@ -18,11 +19,11 @@ import java.util.Arrays;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/google-auth")
 public class GoogleAuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleAuthController.class);
-    
+
     private final GoogleAuthService googleAuthService;
     private final JwtService jwtService;
 
@@ -57,11 +58,11 @@ public class GoogleAuthController {
             HttpServletResponse response
     ) {
         logger.info("🔵 Google OAuth callback başladı - Code: {}", code.substring(0, Math.min(10, code.length())) + "...");
-        
+
         try {
             Map<String, Object> userInfo = googleAuthService.getUserInfoFromCode(code);
             logger.info("🔵 Google'dan kullanıcı bilgileri alındı: {}", userInfo);
-            
+
             String email = (String) userInfo.get("email");
             logger.info("🔵 Email: {}", email);
 
@@ -82,10 +83,6 @@ public class GoogleAuthController {
                     "jwt", jwt,
                     "user", userInfo
             ));
-            // Frontend'e redirect yap
-//            logger.info("🔵 Frontend'e redirect yapılıyor...");
-//            response.sendRedirect("http://localhost:5173/upload/123");
-//            return null;
         } catch (Exception e) {
             logger.error("🔴 Google OAuth callback hatası: ", e);
             return ResponseEntity.status(500).body("OAuth callback error: " + e.getMessage());
@@ -95,7 +92,7 @@ public class GoogleAuthController {
     @GetMapping("/me")
     public ResponseEntity<?> currentUser(HttpServletRequest request) {
         logger.info("🔵 /auth/me endpoint'i çağrıldı");
-        
+
         // Cookie'den JWT token'ı al
         String jwt = null;
         if (request.getCookies() != null) {
@@ -103,7 +100,7 @@ public class GoogleAuthController {
             for (Cookie cookie : request.getCookies()) {
                 logger.info("🔵 Cookie: {} = {}", cookie.getName(), cookie.getValue() != null ? cookie.getValue().substring(0, Math.min(20, cookie.getValue().length())) + "..." : "null");
             }
-            
+
             jwt = Arrays.stream(request.getCookies())
                     .filter(c -> "jwt".equals(c.getName()))
                     .findFirst()
@@ -117,9 +114,9 @@ public class GoogleAuthController {
             logger.warn("🔴 JWT token bulunamadı!");
             return ResponseEntity.status(401).body("Unauthorized - No JWT token");
         }
-        
+
         logger.info("🔵 JWT token bulundu: {}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
-        
+
         if (!jwtService.validateToken(jwt)) {
             logger.warn("🔴 JWT token geçersiz!");
             return ResponseEntity.status(401).body("Unauthorized - Invalid JWT token");
@@ -130,15 +127,15 @@ public class GoogleAuthController {
             String email = jwtService.extractEmail(jwt);
             String name = jwtService.extractName(jwt);
             String picture = jwtService.extractPicture(jwt);
-            
+
             logger.info("🔵 JWT'den çıkarılan bilgiler - Email: {}, Name: {}, Picture: {}", email, name, picture);
-            
+
             Map<String, Object> userInfo = Map.of(
-                "email", email,
-                "name", name,
-                "picture", picture
+                    "email", email,
+                    "name", name,
+                    "picture", picture
             );
-            
+
             logger.info("🔵 Frontend'e dönülen user info: {}", userInfo);
             return ResponseEntity.ok(userInfo);
         } catch (Exception e) {
@@ -157,20 +154,16 @@ public class GoogleAuthController {
         cookie.setPath("/");
         cookie.setMaxAge(0); // Hemen sil
         response.addCookie(cookie);
-        
+
         return ResponseEntity.ok("Logged out successfully");
     }
 
     // ✅ Yeni endpoint
     @PostMapping("/validate-token")
-    public ResponseEntity<?> validateToken(@RequestBody TokenRequest request) {
+    public ResponseEntity<?> validateToken(@RequestBody ValidateTokenRequest request) {
         boolean valid = jwtService.validateToken(request.getToken());
         return ResponseEntity.ok(Map.of("valid", valid));
     }
 
-    public static class TokenRequest {
-        private String token;
-        public String getToken() { return token; }
-        public void setToken(String token) { this.token = token; }
-    }
+
 }
