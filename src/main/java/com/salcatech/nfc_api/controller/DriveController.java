@@ -86,24 +86,24 @@ public class DriveController {
      * Dosyaları listele endpoint'i
      */
     @GetMapping("/files")
-    public ResponseEntity<?> listFiles(HttpServletRequest request) {
+    public ResponseEntity<?> listFiles(@RequestParam String folderId) {
         logger.info("🔵 Dosya listeleme isteği alındı");
 
         try {
             // JWT token'ı al
-            String jwt = getJwtFromRequest(request);
-            if (jwt == null || !jwtService.validateToken(jwt)) {
-                return ResponseEntity.status(401).body("Unauthorized");
-            }
-
-            // JWT'den access token'ı çıkar
-            String accessToken = jwtService.extractAccessToken(jwt);
-            if (accessToken == null) {
-                return ResponseEntity.status(401).body("Access token bulunamadı");
-            }
+//            String jwt = getJwtFromRequest(request);
+//            if (jwt == null || !jwtService.validateToken(jwt)) {
+//                return ResponseEntity.status(401).body("Unauthorized");
+//            }
+//
+//            // JWT'den access token'ı çıkar
+//            String accessToken = jwtService.extractAccessToken(jwt);
+//            if (accessToken == null) {
+//                return ResponseEntity.status(401).body("Access token bulunamadı");
+//            }
 
             // Google Drive'dan dosyaları listele
-            List<Map<String, Object>> files = googleDriveService.listFiles(accessToken,false);
+            List<Map<String, Object>> files = googleDriveService.listFiles(folderId);
 
             logger.info("🔵 {} dosya bulundu", files.size());
             return ResponseEntity.ok(files);
@@ -114,37 +114,37 @@ public class DriveController {
         }
     }
 
-    /**
-     * Dosyaları listele endpoint'i
-     */
-    @GetMapping("/gallery-files")
-    public ResponseEntity<?> listGalleryFiles(HttpServletRequest request) {
-        logger.info("🔵 Dosya listeleme isteği alındı");
-
-        try {
-            // JWT token'ı al
-            String jwt = getJwtFromRequest(request);
-            if (jwt == null || !jwtService.validateToken(jwt)) {
-                return ResponseEntity.status(401).body("Unauthorized");
-            }
-
-            // JWT'den access token'ı çıkar
-            String accessToken = jwtService.extractAccessToken(jwt);
-            if (accessToken == null) {
-                return ResponseEntity.status(401).body("Access token bulunamadı");
-            }
-
-            // Google Drive'dan dosyaları listele
-            List<Map<String, Object>> files = googleDriveService.listFiles(accessToken,true);
-
-            logger.info("🔵 {} dosya bulundu", files.size());
-            return ResponseEntity.ok(files);
-
-        } catch (Exception e) {
-            logger.error("🔴 Dosya listeleme hatası: ", e);
-            return ResponseEntity.status(500).body("Dosya listeleme hatası: " + e.getMessage());
-        }
-    }
+//    /**
+//     * Dosyaları listele endpoint'i
+//     */
+//    @GetMapping("/gallery-files")
+//    public ResponseEntity<?> listGalleryFiles(HttpServletRequest request) {
+//        logger.info("🔵 Dosya listeleme isteği alındı");
+//
+//        try {
+//            // JWT token'ı al
+//            String jwt = getJwtFromRequest(request);
+//            if (jwt == null || !jwtService.validateToken(jwt)) {
+//                return ResponseEntity.status(401).body("Unauthorized");
+//            }
+//
+//            // JWT'den access token'ı çıkar
+//            String accessToken = jwtService.extractAccessToken(jwt);
+//            if (accessToken == null) {
+//                return ResponseEntity.status(401).body("Access token bulunamadı");
+//            }
+//
+//            // Google Drive'dan dosyaları listele
+//            List<Map<String, Object>> files = googleDriveService.listFiles(accessToken,true);
+//
+//            logger.info("🔵 {} dosya bulundu", files.size());
+//            return ResponseEntity.ok(files);
+//
+//        } catch (Exception e) {
+//            logger.error("🔴 Dosya listeleme hatası: ", e);
+//            return ResponseEntity.status(500).body("Dosya listeleme hatası: " + e.getMessage());
+//        }
+//    }
 
 
     /**

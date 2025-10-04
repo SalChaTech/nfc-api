@@ -32,9 +32,32 @@ public class JwtService {
                 .compact();
     }
 
+    public String generateTokenByProductIdAndUserId(String productId, Long userId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + 3600 * 1000);
+
+        return Jwts.builder()
+                .setSubject(userId != null ? userId.toString() : "")
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .addClaims(Map.of("productId", productId))
+                .signWith(SignatureAlgorithm.HS256, jwtSecret.getBytes())
+                .compact();
+    }
+
+    public String extractProductIdFromToken(String token) {
+        token = token.trim();
+        Claims claims = Jwts.parser()
+                .setSigningKey(jwtSecret.getBytes()) // aynı secret ile doğrulama yapılmalı
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.get("productId", String.class);
+    }
+
     public String generateTokenWithUserInfo(Map<String, Object> userInfo) {
         logger.info("🔵 JWT token oluşturuluyor - UserInfo: {}", userInfo);
-        
+
         String token = Jwts.builder()
                 .setSubject((String) userInfo.get("email"))
                 .claim("name", userInfo.get("name"))
@@ -45,7 +68,7 @@ public class JwtService {
                 .setExpiration(new Date(System.currentTimeMillis() + 3600 * 1000)) // 1 saat
                 .signWith(getSigningKey())
                 .compact();
-                
+
         logger.info("🔵 JWT token oluşturuldu - Uzunluk: {}", token.length());
         return token;
     }

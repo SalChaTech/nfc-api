@@ -12,10 +12,19 @@ public class Users {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long userId;
+    private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "product_id", nullable = false)
+    private String productId;
+
+    @Column(name = "email")
     private String email;
 
-    private String driveLink;
+    @Column(name = "drive_application_folder_id")
+    private String driveApplicationFolderId;
+
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+
 }

@@ -1,13 +1,14 @@
 package com.salcatech.nfc_api.controller;
 
+import com.salcatech.nfc_api.dto.UserAuthRequest;
 import com.salcatech.nfc_api.service.GoogleAuthService;
 import com.salcatech.nfc_api.service.JwtService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,14 +19,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
-public class AuthController {
+public class GoogleAuthController {
 
-    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+    private static final Logger logger = LoggerFactory.getLogger(GoogleAuthController.class);
     
     private final GoogleAuthService googleAuthService;
     private final JwtService jwtService;
 
-    public AuthController(GoogleAuthService googleAuthService, JwtService jwtService) {
+    public GoogleAuthController(GoogleAuthService googleAuthService, JwtService jwtService) {
         this.googleAuthService = googleAuthService;
         this.jwtService = jwtService;
     }
@@ -145,6 +146,7 @@ public class AuthController {
             return ResponseEntity.status(500).body("Error extracting user info: " + e.getMessage());
         }
     }
+    //$2a$10$4h1mZTrMl3AbdST/GLmFtO081hWOited1H8mTdLbDSKeEYbRAWXrS
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletResponse response) {
@@ -157,5 +159,18 @@ public class AuthController {
         response.addCookie(cookie);
         
         return ResponseEntity.ok("Logged out successfully");
+    }
+
+    // ✅ Yeni endpoint
+    @PostMapping("/validate-token")
+    public ResponseEntity<?> validateToken(@RequestBody TokenRequest request) {
+        boolean valid = jwtService.validateToken(request.getToken());
+        return ResponseEntity.ok(Map.of("valid", valid));
+    }
+
+    public static class TokenRequest {
+        private String token;
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
     }
 }
