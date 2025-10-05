@@ -38,11 +38,14 @@ public class GoogleAuthController {
     @Value("${google.client.secret}")
     private String clientSecret;
 
+    @Value("${google.redirect.uri}")
+    private String redirectUri;
+
     @GetMapping("/google")
     public void redirectToGoogle(HttpServletResponse response) throws IOException {
         String googleOauthUrl = "https://accounts.google.com/o/oauth2/v2/auth" +
                 "?client_id=" + clientId +
-                "&redirect_uri=" + "http://localhost:5173/auth/callback" +   // örn: http://localhost:8080/auth/callback
+                "&redirect_uri=" + redirectUri +   // örn: http://localhost:8080/auth/callback
                 "&response_type=code" +
                 "&scope=openid email profile https://www.googleapis.com/auth/drive.file";
         response.sendRedirect(googleOauthUrl);
