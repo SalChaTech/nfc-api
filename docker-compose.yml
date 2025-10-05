@@ -1,0 +1,14 @@
+services:
+  nfc-api:
+    build: .
+    container_name: nfc-api-container
+    ports:
+      - "8443:8443"
+    restart: unless-stopped
+    environment:
+      SERVER_ADDRESS: 0.0.0.0
+      SERVER_SSL_KEY_STORE: /app/keystore.p12
+      SERVER_SSL_KEY_STORE_PASSWORD: 123456   # p12 oluştururken belirlediğin parola
+      SERVER_SSL_KEY_STORE_TYPE: PKCS12
+      SERVER_SSL_KEY_ALIAS: api-ssl-key          # p12 oluştururken belirlediğin alias
+      SERVER_PORT: 8443
