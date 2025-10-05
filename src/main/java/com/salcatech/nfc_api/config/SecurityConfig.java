@@ -26,11 +26,13 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
+        http.requiresChannel(channel ->
+                        channel.anyRequest().requiresSecure()
+                )
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/wedding-memories/**","/api/wedding-memories/update/**","/api/drive/**","/api/drive/files/**", "/api/google-auth/**", "/api/user-auth/**", "/api/users/**", "/api/users/drive-application-folder-id/**").permitAll()
+                        .requestMatchers("/api/wedding-memories/**", "/api/wedding-memories/update/**", "/api/drive/**", "/api/drive/files/**", "/api/google-auth/**", "/api/user-auth/**", "/api/users/**", "/api/users/drive-application-folder-id/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -42,7 +44,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:3000", "http://localhost:5173", "http://localhost:8080"));
+        configuration.setAllowedOriginPatterns(Arrays.asList("https://localhost:3000", "https://localhost:5173", "https://localhost:8080"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
