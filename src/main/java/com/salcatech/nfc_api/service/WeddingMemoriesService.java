@@ -37,4 +37,9 @@ public class WeddingMemoriesService {
     public List<WeddingMemories> getAllWeddingMemories() {
         return weddingMemoriesRepository.findAll();
     }
+
+    public WeddingMemories getWeddingMemoryByUserId(Long userId) {
+        return weddingMemoriesRepository.findByUserId(userId)
+                .orElse(null); // Eğer memory yoksa null döner
+    }
 }

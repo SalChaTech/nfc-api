@@ -55,6 +55,17 @@ public class JwtService {
         return claims.get("productId", String.class);
     }
 
+    public String extractUserIdFromToken(String token) {
+        try {
+            token = token.trim();
+            Claims claims = parseClaims(token);
+            return claims.getSubject(); // subject alanında userId var
+        } catch (Exception e) {
+            logger.warn("🔴 Token'dan userId çıkarılamadı: {}", e.getMessage());
+            return null;
+        }
+    }
+
     public String generateTokenWithUserInfo(Map<String, Object> userInfo) {
         logger.info("🔵 JWT token oluşturuluyor - UserInfo: {}", userInfo);
 
