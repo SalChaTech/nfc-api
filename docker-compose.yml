@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  nfc-api:
+    build: .
+    container_name: nfc-api
+    ports:
+      - "8443:8443"   # HTTPS dışarı açılıyor
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - KEYSTORE_PASSWORD=123456
+      - GOOGLE_CLIENT_ID=424984163476-c49eb588d7pu56g5bs5ldaechkhdqneh.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
+      - GOOGLE_DRIVE_API_KEY=AIzaSyBRcZZp1ydJ3sbUS0lWo28mnKMJAIePNkk
+      - GOOGLE_REDIRECT_URI=http://localhost:5173/auth/callback
+      - JWT_SECRET=superSecretKeysssuperSecretKeysssuperSecretKeysssuperSecretKeyss
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://191.101.81.228:5432/salchatech
+      - SPRING_DATASOURCE_USERNAME=salih
+      - SPRING_DATASOURCE_PASSWORD=SCokr1913.1914.
+      - SERVER_SSL_ENABLED=false
+    restart: always
