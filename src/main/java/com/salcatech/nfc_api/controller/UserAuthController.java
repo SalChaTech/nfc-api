@@ -6,16 +6,23 @@ import com.salcatech.nfc_api.dto.ValidateTokenRequest;
 import com.salcatech.nfc_api.model.Users;
 import com.salcatech.nfc_api.service.JwtService;
 import com.salcatech.nfc_api.service.UsersService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -23,12 +30,14 @@ import java.util.Map;
 public class UserAuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserAuthController.class);
+    private final AuthenticationManager authManager;
 
     private final UsersService usersService;
     private final JwtService jwtService;
     private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserAuthController(UsersService usersService, JwtService jwtService) {
+    public UserAuthController(AuthenticationManager authManager, UsersService usersService, JwtService jwtService) {
+        this.authManager = authManager;
         this.usersService = usersService;
         this.jwtService = jwtService;
         this.passwordEncoder = new BCryptPasswordEncoder();
@@ -71,6 +80,33 @@ public class UserAuthController {
     public ResponseEntity<?> validateToken(@RequestBody ValidateTokenRequest request) {
         boolean valid = jwtService.validateToken(request.getToken());
         return ResponseEntity.ok(Map.of("valid", valid));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest, HttpServletResponse response) {
+        String email = loginRequest.get("email");
+        String password = loginRequest.get("password");
+
+        Authentication auth = authManager.authenticate(
+                new UsernamePasswordAuthenticationToken(email, password)
+        );
+
+        // Burada user’ın rollerini topla
+        List<String> roles = auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .toList();
+
+        // Token oluştur
+        String token = jwtService.generateToken(email, roles);
+
+        // Token'ı cookie olarak ata
+        Cookie cookie = new Cookie("jwt", token);
+        cookie.setHttpOnly(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(3600);
+        response.addCookie(cookie);
+
+        return ResponseEntity.ok(Map.of("message", "Login successful"));
     }
 
 }

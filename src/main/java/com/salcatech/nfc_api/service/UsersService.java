@@ -2,6 +2,7 @@ package com.salcatech.nfc_api.service;
 
 import com.salcatech.nfc_api.model.Users;
 import com.salcatech.nfc_api.repository.UsersRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -10,12 +11,17 @@ import java.util.List;
 public class UsersService {
 
     private final UsersRepository usersRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UsersService(UsersRepository usersRepository) {
+
+    public UsersService(UsersRepository usersRepository, PasswordEncoder passwordEncoder) {
         this.usersRepository = usersRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Users saveUser(Users user) {
+        user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+
         return usersRepository.save(user);
     }
 

@@ -112,3 +112,4 @@ Production ortamı için:
 2. SSL sertifikalarını ekleyin
 3. Reverse proxy (nginx) kullanın
 4. Database backup stratejisi oluşturun
+

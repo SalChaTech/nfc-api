@@ -10,3 +10,4 @@
 
 -- The application will handle table creation via JPA/Hibernate
 -- with spring.jpa.hibernate.ddl-auto=update
+

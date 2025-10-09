@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,7 @@ public class UsersController {
         this.usersService = usersService;
         this.jwtService = jwtService;
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public Users createUser(@RequestBody Users user) {
         return usersService.saveUser(user);

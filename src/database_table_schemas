@@ -17,3 +17,10 @@ CREATE TABLE wedding_memories (
         FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
 );
+
+
+CREATE TABLE product_categories (
+                            id SERIAL PRIMARY KEY,
+                            name VARCHAR(255) NOT NULL,
+                            description TEXT
+);
