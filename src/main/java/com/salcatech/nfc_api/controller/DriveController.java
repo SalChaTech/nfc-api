@@ -4,6 +4,7 @@ import com.salcatech.nfc_api.service.GoogleDriveService;
 import com.salcatech.nfc_api.service.JwtService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,6 +42,20 @@ public class DriveController {
             HttpServletRequest request
     ) {
         logger.info("🔵 Dosya yükleme isteği alındı: {}", file.getOriginalFilename());
+
+        long sizeInMB = file.getSize() / (1024 * 1024);
+        String contentType = file.getContentType();
+        if (contentType != null && contentType.startsWith("image/")) {
+            if (sizeInMB > 20) {
+                return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                        .body(Map.of("message", "Fotoğraf boyutu en fazla 20MB olabilir."));
+            }
+        } else if (contentType != null && contentType.startsWith("video/")) {
+            if (sizeInMB > 300) {
+                return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                        .body(Map.of("message", "Video boyutu en fazla 300MB olabilir."));
+            }
+        }
 
         try {
             // JWT token'ı al

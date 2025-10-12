@@ -1,26 +1,17 @@
-CREATE TABLE users (
-                       id SERIAL PRIMARY KEY,
-                       product_id VARCHAR(50) NOT NULL UNIQUE,
-                       email VARCHAR(255)  UNIQUE, -- Unique olacak
-                       drive_application_folder_id TEXT,
-                       password_hash VARCHAR(255)  -- kullanıcıya verilen parola
+create table user_product (
+                              id varchar(10) not null,
+                              email varchar(255),
+                              drive_application_folder_id varchar(255),
+                              primary key (id)
 );
 
 
-CREATE TABLE wedding_memories (
-    id SERIAL PRIMARY KEY,       -- otomatik artan benzersiz ID
-    user_id INT NOT NULL,        -- users tablosundaki user_id’ye bağlı
-    male_name VARCHAR(255),      -- erkek isim
-    female_name VARCHAR(255),    -- kadın isim
-    date DATE,                   -- tarih alanı
-    CONSTRAINT fk_user
-        FOREIGN KEY (user_id) REFERENCES users(id)
-        ON DELETE CASCADE
-);
-
-
-CREATE TABLE product_categories (
-                            id SERIAL PRIMARY KEY,
-                            name VARCHAR(255) NOT NULL,
-                            description TEXT
+create table wedding_memory_data (
+                                  id bigserial primary key,
+                                  user_product_id varchar(10) not null,
+                                  male_name varchar(255),
+                                  female_name varchar(255),
+                                  date date,
+                                  constraint fk_wedding_memory_data_user_product
+                                      foreign key (user_product_id) references user_product(id)
 );

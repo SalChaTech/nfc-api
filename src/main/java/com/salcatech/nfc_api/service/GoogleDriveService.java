@@ -32,7 +32,7 @@ public class GoogleDriveService {
     private static final Logger logger = LoggerFactory.getLogger(GoogleDriveService.class);
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE_FILE);
-    private static final String APP_FOLDER_NAME = "NFC File Manager";
+    private static final String APP_FOLDER_NAME = "Tag4Ever";
     String DRIVE_API_URL =
             "https://www.googleapis.com/drive/v3/files?q='%s'+in+parents+and+trashed=false&fields=files(id,name,webViewLink,mimeType)&key=%s";
     @Value("${google.client.id}")

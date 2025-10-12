@@ -5,11 +5,11 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "wedding_memories")
+@Table(name = "wedding_memory_data")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class WeddingMemories {
+public class WeddingMemoryData {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -17,8 +17,8 @@ public class WeddingMemories {
 
     // Foreign key ilişki
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private Users user;
+    @JoinColumn(name = "user_product_id", nullable = false)
+    private UserProduct userProduct;
 
     private String maleName;
     private String femaleName;
