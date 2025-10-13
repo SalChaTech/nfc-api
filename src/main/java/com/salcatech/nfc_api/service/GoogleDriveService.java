@@ -7,19 +7,24 @@ import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.util.IOUtils;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.Permission;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -263,49 +268,11 @@ public class GoogleDriveService {
             throw new RuntimeException("🔴 Google Drive klasör listeleme hatası: " + e.getMessage(), e);
         }
 
-        //        try {
-//            logger.info("🔵 Uygulama klasöründeki dosyalar listeleniyor...");
-//
-//            Drive driveService = getDriveService(accessToken);
-//
-//            // Uygulama klasörünü al
-//            String applicationFolderId =
-//                    getOrCreateAppFolder(accessToken);
-//
-//            String galleryFolderId = getOrCreateGalleryFolder(driveService, applicationFolderId);
-//
-//            logger.info("🔵 Klasör ID: {}", applicationFolderId);
-//
-//            String folderId = toUploadSubfolder ? galleryFolderId : applicationFolderId;
-//
-//            // Sadece bu klasördeki dosyaları listele
-//            FileList result = driveService.files().list()
-//                    .setQ("'" + folderId + "' in parents and trashed=false")
-//                    .setPageSize(20)
-//                    .setFields("nextPageToken, files(id, name, size, webViewLink, createdTime, mimeType)")
-//                    .execute();
-//
-//            List<File> files = result.getFiles();
-//            logger.info("🔵 {} dosya bulundu", files.size());
-//
-//            return files.stream()
-//                    .map(file -> {
-//                        Map<String, Object> fileMap = new java.util.HashMap<>();
-//                        fileMap.put("id", file.getId());
-//                        fileMap.put("name", file.getName());
-//                        fileMap.put("size", file.getSize() != null ? file.getSize() : 0);
-//                        fileMap.put("webViewLink", file.getWebViewLink() != null ? file.getWebViewLink() : "");
-//                        fileMap.put("createdTime", file.getCreatedTime() != null ? file.getCreatedTime().toString() : "");
-//                        fileMap.put("mimeType", file.getMimeType() != null ? file.getMimeType() : "");
-//                        return fileMap;
-//                    })
-//                    .toList();
-//
-//        } catch (Exception e) {
-//            logger.error("🔴 Google Drive dosya listeleme hatası: ", e);
-//            throw new RuntimeException("Dosya listeleme hatası: " + e.getMessage());
-//        }
+
     }
+
+
+
 
     /**
      * Dosya silme (Gerçek Google Drive API)

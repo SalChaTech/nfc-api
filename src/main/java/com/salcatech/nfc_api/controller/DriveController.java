@@ -1,9 +1,11 @@
 package com.salcatech.nfc_api.controller;
 
+import com.google.api.client.util.IOUtils;
 import com.salcatech.nfc_api.service.GoogleDriveService;
 import com.salcatech.nfc_api.service.JwtService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +25,7 @@ import java.util.Map;
 public class DriveController {
 
     private static final Logger logger = LoggerFactory.getLogger(DriveController.class);
-    
+
     private final GoogleDriveService googleDriveService;
     private final JwtService jwtService;
 
@@ -78,11 +81,11 @@ public class DriveController {
 
             // Google Drive'a yükle
             Map<String, Object> result = googleDriveService.uploadFile(
-                accessToken,
-                tempFile,
-                file.getOriginalFilename(),
-                file.getContentType(),
-                    fileId,toUploadSubfolder
+                    accessToken,
+                    tempFile,
+                    file.getOriginalFilename(),
+                    file.getContentType(),
+                    fileId, toUploadSubfolder
             );
 
             // Geçici dosyayı sil
@@ -153,6 +156,59 @@ public class DriveController {
     }
 
 
+    @DeleteMapping("/files/by-name/{fileName}")
+    public ResponseEntity<?> deleteFileByName(
+            @PathVariable String fileName,
+            HttpServletRequest request
+    ) {
+        logger.info("🔵 Dosya silme isteği alındı: {}", fileName);
+
+        try {
+            // JWT token'ı al
+            String jwt = getJwtFromRequest(request);
+            if (jwt == null || !jwtService.validateToken(jwt)) {
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
+
+            // JWT'den access token'ı çıkar
+            String accessToken = jwtService.extractAccessToken(jwt);
+            if (accessToken == null) {
+                return ResponseEntity.status(401).body("Access token bulunamadı");
+            }
+
+            String applicationFolderId = googleDriveService.getOrCreateAppFolder(accessToken);
+
+            List<Map<String, Object>> files = googleDriveService.listFiles(applicationFolderId);
+
+            // 2️⃣ Eşleşen isimdeki dosyaları bul
+            List<Map<String, Object>> matchedFiles = files.stream()
+                    .filter(file -> fileName.equals(file.get("name")))
+                    .toList();
+
+            if (matchedFiles.isEmpty()) {
+                logger.warn("⚠️ '{}' isminde dosya bulunamadı", fileName);
+                return ResponseEntity.status(404).body("Dosya bulunamadı: " + fileName);
+
+            }
+
+            // 3️⃣ Eşleşen dosyaları sil
+            for (Map<String, Object> file : matchedFiles) {
+                String fileId = (String) file.get("id");
+                googleDriveService.deleteFile(accessToken, fileId);
+                logger.info("🗑️ Silindi: {} (ID: {})", file.get("name"), fileId);
+            }
+
+            logger.info("✅ '{}' isminde tüm dosyalar silindi", fileName);
+
+            return ResponseEntity.ok("Dosya(lar) başarıyla silindi: " + fileName);
+
+        } catch (Exception e) {
+            logger.error("🔴 Dosya silme hatası: ", e);
+            return ResponseEntity.status(500).body("Dosya silme hatası: " + e.getMessage());
+        }
+    }
+
+
     /**
      * Request'ten JWT token'ı al
      */
@@ -165,5 +221,36 @@ public class DriveController {
                     .orElse(null);
         }
         return null;
+    }
+
+
+    @GetMapping("/video/{id}")
+    public void streamVideo(@PathVariable String id, HttpServletResponse response) {
+        try {
+            String fileUrl = "https://drive.google.com/uc?export=download&id=" + id;
+
+            java.net.URL url = new java.net.URL(fileUrl);
+            java.net.URLConnection connection = url.openConnection();
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+            InputStream inputStream = connection.getInputStream();
+
+            response.setContentType("video/mp4");
+            response.setHeader("Cache-Control", "no-cache");
+            response.setHeader("Accept-Ranges", "bytes");
+
+            IOUtils.copy(inputStream, response.getOutputStream());
+            response.flushBuffer();
+
+            logger.info("✅ Video public olarak stream edildi: {}", id);
+
+        } catch (Exception e) {
+            logger.error("🔴 Video stream hatası: ", e);
+            try {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Video stream hatası: " + e.getMessage());
+            } catch (IOException ignored) {
+            }
+        }
     }
 }
