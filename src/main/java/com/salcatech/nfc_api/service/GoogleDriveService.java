@@ -7,27 +7,22 @@ import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.util.IOUtils;
 import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.Permission;
-import jakarta.servlet.http.HttpServletResponse;
+import com.salcatech.nfc_api.dto.GoogleFileInfo;
+import com.salcatech.nfc_api.util.JwtAuthenticationUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,32 +31,28 @@ public class GoogleDriveService {
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleDriveService.class);
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-    private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE_FILE);
-    private static final String APP_FOLDER_NAME = "Tag4Ever";
-    String DRIVE_API_URL =
-            "https://www.googleapis.com/drive/v3/files?q='%s'+in+parents+and+trashed=false&fields=files(id,name,webViewLink,mimeType)&key=%s";
-    @Value("${google.client.id}")
-    private String clientId;
 
-    @Value("${google.client.secret}")
-    private String clientSecret;
+
+    @Value("${application.name}")
+    private String applicationName;
+
+    @Value("${google.drive.api.url}")
+    private String driveApiUrl;
 
     @Value("${google.drive.api.key}")
     private String driveApiKey;
 
-    private final GoogleAuthService googleAuthService;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public GoogleDriveService(GoogleAuthService googleAuthService) {
-        this.googleAuthService = googleAuthService;
-    }
 
     /**
      * Google Drive API için Drive service oluşturur
      */
-    private Drive getDriveService(String accessToken) throws IOException, GeneralSecurityException {
+    private Drive getDriveService() throws IOException, GeneralSecurityException {
         logger.info("🔵 Google Drive service oluşturuluyor...");
+
+        String accessToken = JwtAuthenticationUtil.getAccessToken();
 
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
@@ -69,22 +60,24 @@ public class GoogleDriveService {
                 .setAccessToken(accessToken);
 
         return new Drive.Builder(httpTransport, JSON_FACTORY, credential)
-                .setApplicationName("NFC API")
+                .setApplicationName(this.applicationName)
                 .build();
     }
 
     /**
      * Uygulama klasörünü oluşturur veya mevcut olanı bulur
      */
-    public String getOrCreateAppFolder(String accessToken) {
+    public String getOrCreateApplicationFolder(String applicationFolderName) {
         try {
-            logger.info("🔵 Uygulama klasörü aranıyor: {}", APP_FOLDER_NAME);
+            logger.info("🔵 Uygulama klasörü aranıyor: {}", applicationFolderName);
+            if (applicationFolderName == null || applicationFolderName.isEmpty()) {
+                applicationFolderName = this.applicationName;
+            }
 
-            Drive driveService = getDriveService(accessToken);
+            Drive driveService = getDriveService();
 
-            // Önce mevcut klasörü ara
             FileList result = driveService.files().list()
-                    .setQ("name='" + APP_FOLDER_NAME + "' and mimeType='application/vnd.google-apps.folder' and trashed=false")
+                    .setQ("name='" + applicationFolderName + "' and mimeType='application/vnd.google-apps.folder' and trashed=false")
                     .setFields("files(id,name)")
                     .execute();
 
@@ -92,17 +85,14 @@ public class GoogleDriveService {
 
             if (!folders.isEmpty()) {
                 String folderId = folders.get(0).getId();
-                logger.info("🔵 Mevcut klasör bulundu: {} (ID: {})", APP_FOLDER_NAME, folderId);
-
-
+                logger.info("🔵 Mevcut klasör bulundu: {} (ID: {})", applicationFolderName, folderId);
                 return folderId;
             }
 
-            // Klasör yoksa oluştur
-            logger.info("🔵 Yeni klasör oluşturuluyor: {}", APP_FOLDER_NAME);
+            logger.info("🔵 Yeni klasör oluşturuluyor: {}", applicationFolderName);
 
             File folderMetadata = new File();
-            folderMetadata.setName(APP_FOLDER_NAME);
+            folderMetadata.setName(applicationFolderName);
             folderMetadata.setMimeType("application/vnd.google-apps.folder");
 
             File folder = driveService.files().create(folderMetadata)
@@ -111,7 +101,6 @@ public class GoogleDriveService {
 
             logger.info("🔵 Klasör başarıyla oluşturuldu: {} (ID: {})", folder.getName(), folder.getId());
 
-            // 🔹 Klasörü paylaşılabilir yap
             Permission permission = new Permission()
                     .setType("anyone")
                     .setRole("reader"); // sadece görüntüleme
@@ -119,11 +108,6 @@ public class GoogleDriveService {
                     .setFields("id")
                     .execute();
             logger.info("🔵 Klasör paylaşılabilir hale getirildi (herkese link ile erişim)");
-
-            // Alt klasör (Gallery) oluşturulacaksa
-//            if (toUploadSubfolder) {
-//                return getOrCreateGalleryFolder(driveService, folder.getId());
-//            }
 
             return folder.getId();
 
@@ -133,11 +117,12 @@ public class GoogleDriveService {
         }
     }
 
-    private String getOrCreateGalleryFolder(Drive driveService, String parentFolderId) {
+    public String getOrCreateSubFolder(String parentFolderId, String subFolderName) {
         try {
-            // Gallery klasörünü arıyoruz
+            Drive driveService = getDriveService();
+
             FileList result = driveService.files().list()
-                    .setQ("name='Gallery' and mimeType='application/vnd.google-apps.folder' and trashed=false and '" + parentFolderId + "' in parents")
+                    .setQ("name='" + subFolderName + "' and mimeType='application/vnd.google-apps.folder' and trashed=false and '" + parentFolderId + "' in parents")
                     .setFields("files(id,name)")
                     .execute();
 
@@ -145,15 +130,14 @@ public class GoogleDriveService {
 
             if (!folders.isEmpty()) {
                 String folderId = folders.get(0).getId();
-                logger.info("🔵 Gallery klasörü bulundu: {} (ID: {})", "Gallery", folderId);
+                logger.info("🔵 SubFolder klasörü bulundu: {} (ID: {})", subFolderName, folderId);
                 return folderId;
             }
 
-            // Klasör yoksa oluştur
-            logger.info("🔵 Yeni Gallery klasörü oluşturuluyor...");
+            logger.info("🔵 Yeni SubFolder klasörü oluşturuluyor...");
 
             File folderMetadata = new File();
-            folderMetadata.setName("Gallery");
+            folderMetadata.setName(subFolderName);
             folderMetadata.setMimeType("application/vnd.google-apps.folder");
             folderMetadata.setParents(Collections.singletonList(parentFolderId));
 
@@ -161,11 +145,11 @@ public class GoogleDriveService {
                     .setFields("id,name")
                     .execute();
 
-            logger.info("🔵 Gallery klasörü başarıyla oluşturuldu: {} (ID: {})", folder.getName(), folder.getId());
+            logger.info("🔵 SubFolder klasörü başarıyla oluşturuldu: {} (ID: {})", folder.getName(), folder.getId());
             return folder.getId();
         } catch (Exception e) {
-            logger.error("🔴 Gallery klasörü oluşturma hatası: ", e);
-            throw new RuntimeException("Gallery klasörü oluşturma hatası: " + e.getMessage());
+            logger.error("🔴 SubFolder klasörü oluşturma hatası: {}", subFolderName, e);
+            throw new RuntimeException("SubFolder klasörü oluşturma hatası: " + e.getMessage());
         }
     }
 
@@ -173,42 +157,38 @@ public class GoogleDriveService {
     /**
      * Dosya yükleme (Gerçek Google Drive API) - Uygulama klasörüne
      */
-    public Map<String, Object> uploadFile(String accessToken, java.io.File file, String fileName, String mimeType, String fileId, boolean toUploadSubfolder) {
+    public GoogleFileInfo uploadFile(String applicationFolderName, String subFolderName, java.io.File file, String fileId, String fileName, String mimeType) {
         try {
             logger.info("🔵 Google Drive'a dosya yükleniyor: {}", fileName);
             logger.info("🔵 Dosya boyutu: {} bytes", file.length());
             logger.info("🔵 MIME type: {}", mimeType);
 
-            Drive driveService = getDriveService(accessToken);
+            Drive driveService = getDriveService();
 
-            // Uygulama klasörünü al veya oluştur
-            String applicationFolderId = getOrCreateAppFolder(accessToken);
-            String galleryFolderId = getOrCreateGalleryFolder(driveService, applicationFolderId);
+            String applicationFolderId = getOrCreateApplicationFolder(applicationFolderName);
             logger.info("🔵 Dosya klasöre yüklenecek: {}", applicationFolderId);
 
             File uploadedFile;
 
             if (fileId != null && !fileId.isEmpty() && fileId.length() != 1) {
-                // --- Var olan dosyayı güncelle (overwrite) ---
                 FileContent mediaContent = new FileContent(mimeType, file);
                 File fileMetadata = new File();
                 fileMetadata.setName(fileName);
-                // Update sırasında parent göndermiyoruz
                 uploadedFile = driveService.files().update(fileId, fileMetadata, mediaContent)
                         .setFields("id,name,size,webViewLink,modifiedTime")
                         .execute();
 
                 logger.info("🔵 Dosya güncellendi: {}", uploadedFile.getName());
             } else {
-                // --- Yeni dosya oluştur ---
+
                 File fileMetadata = new File();
                 fileMetadata.setName(fileName);
-                if (toUploadSubfolder) {
-                    fileMetadata.setParents(Collections.singletonList(galleryFolderId)); // sadece create'de kullan
 
+                if (subFolderName != null && !subFolderName.isEmpty()) {
+                    String subFolderId = getOrCreateSubFolder(applicationFolderId, subFolderName);
+                    fileMetadata.setParents(Collections.singletonList(subFolderId));
                 } else {
-
-                    fileMetadata.setParents(Collections.singletonList(applicationFolderId)); // sadece create'de kullan
+                    fileMetadata.setParents(Collections.singletonList(applicationFolderId));
                 }
 
                 FileContent mediaContent = new FileContent(mimeType, file);
@@ -220,16 +200,14 @@ public class GoogleDriveService {
                 logger.info("🔵 Dosya başarıyla yüklendi: {}", uploadedFile.getName());
             }
 
-            return Map.of(
-                    "id", uploadedFile.getId(),
-                    "name", uploadedFile.getName(),
-                    "size", uploadedFile.getSize() != null ? uploadedFile.getSize() : 0,
-                    "webViewLink", uploadedFile.getWebViewLink() != null ? uploadedFile.getWebViewLink() : "",
-                    "time", uploadedFile.getCreatedTime() != null ? uploadedFile.getCreatedTime().toString() :
-                            uploadedFile.getModifiedTime() != null ? uploadedFile.getModifiedTime().toString() : "",
-                    "mimeType", mimeType,
-                    "folderId", applicationFolderId
-            );
+            return new GoogleFileInfo(uploadedFile.getId(),
+                    uploadedFile.getName(),
+                    uploadedFile.getSize() != null ? uploadedFile.getSize() : 0,
+                    uploadedFile.getWebViewLink() != null ? uploadedFile.getWebViewLink() : "",
+                    uploadedFile.getCreatedTime() != null ? uploadedFile.getCreatedTime().toString() : uploadedFile.getModifiedTime() != null ? uploadedFile.getModifiedTime().toString() : "",
+                    mimeType,
+                    applicationFolderId);
+
 
         } catch (Exception e) {
             logger.error("🔴 Google Drive dosya yükleme hatası: ", e);
@@ -241,11 +219,16 @@ public class GoogleDriveService {
     /**
      * Uygulama klasöründeki dosyaları listele (Gerçek Google Drive API)
      */
-    public List<Map<String, Object>> listFiles(String folderId) {
+    public List<GoogleFileInfo> listFiles(String folderId) {
         try {
-            String url = String.format(DRIVE_API_URL, folderId, driveApiKey);
+            String url = String.format(this.driveApiUrl, folderId, driveApiKey);
             ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
 
+            if (response.getBody() == null || response.getBody().get("files") == null) {
+                return Collections.emptyList();
+            }
+
+            @SuppressWarnings("unchecked")
             List<Map<String, Object>> files = (List<Map<String, Object>>) response.getBody().get("files");
 
             if (files == null) {
@@ -254,13 +237,12 @@ public class GoogleDriveService {
 
             return files.stream()
                     .map(file -> {
-                        Map<String, Object> map = new HashMap<>();
-                        map.put("id", file.get("id"));
-                        map.put("name", file.get("name"));
-                        map.put("mimeType", file.get("mimeType"));
-                        map.put("webViewLink", file.get("webViewLink"));
-                        map.put("previewUrl", "https://drive.google.com/uc?export=view&id=" + file.get("id"));
-                        return map;
+                        GoogleFileInfo googleFileInfo = new GoogleFileInfo();
+                        googleFileInfo.setId(file.get("id").toString());
+                        googleFileInfo.setName(file.get("name").toString());
+                        googleFileInfo.setMimeType(file.get("mimeType").toString());
+                        googleFileInfo.setWebViewLink(file.get("webViewLink").toString());
+                        return googleFileInfo;
                     })
                     .toList();
 
@@ -272,16 +254,14 @@ public class GoogleDriveService {
     }
 
 
-
-
     /**
      * Dosya silme (Gerçek Google Drive API)
      */
-    public void deleteFile(String accessToken, String fileId) {
+    public void deleteFile(String fileId) {
         try {
             logger.info("🔵 Google Drive'dan dosya siliniyor: {}", fileId);
 
-            Drive driveService = getDriveService(accessToken);
+            Drive driveService = getDriveService();
             driveService.files().delete(fileId).execute();
 
             logger.info("🔵 Dosya başarıyla silindi: {}", fileId);

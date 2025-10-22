@@ -1,79 +1,65 @@
 package com.salcatech.nfc_api.controller;
 
-import com.salcatech.nfc_api.dto.UserAuthRequest;
-import com.salcatech.nfc_api.dto.ValidateTokenRequest;
+import com.salcatech.nfc_api.dto.ApiResponse;
+import com.salcatech.nfc_api.dto.GoogleUserInfo;
+import com.salcatech.nfc_api.dto.response.HandleGoogleCallbackResponse;
+import com.salcatech.nfc_api.dto.request.ValidateTokenRequest;
 import com.salcatech.nfc_api.service.GoogleAuthService;
-import com.salcatech.nfc_api.service.JwtService;
+import com.salcatech.nfc_api.util.JwtAuthenticationUtil;
+import com.salcatech.nfc_api.util.JwtUtil;
 import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Map;
 
 @RestController
-@RequestMapping("/api/google-auth")
+@RequestMapping("/api/auth/google")
 public class GoogleAuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleAuthController.class);
 
-    private final GoogleAuthService googleAuthService;
-    private final JwtService jwtService;
+    @Value("${application.jwt.name}")
+    private String applicationJWTName;
 
-    public GoogleAuthController(GoogleAuthService googleAuthService, JwtService jwtService) {
+    private final GoogleAuthService googleAuthService;
+
+    public GoogleAuthController(GoogleAuthService googleAuthService) {
         this.googleAuthService = googleAuthService;
-        this.jwtService = jwtService;
     }
 
-    @Value("${google.client.id}")
-    private String clientId;
-
-    @Value("${google.client.secret}")
-    private String clientSecret;
-
-    @Value("${google.redirect.uri}")
-    private String redirectUri;
-
-    @GetMapping("/google")
-    public void redirectToGoogle(HttpServletResponse response) throws IOException {
+    @GetMapping("/login")
+    public void startGoogleLogin(HttpServletResponse response) throws IOException {
         String googleOauthUrl = "https://accounts.google.com/o/oauth2/v2/auth" +
-                "?client_id=" + clientId +
-                "&redirect_uri=" + redirectUri +   // örn: http://localhost:8080/auth/callback
+                "?client_id=" + googleAuthService.getClientId() +
+                "&redirect_uri=" + googleAuthService.getRedirectUri() +   // örn: http://localhost:8080/auth/callback
                 "&response_type=code" +
                 "&scope=openid email profile https://www.googleapis.com/auth/drive.file";
         response.sendRedirect(googleOauthUrl);
     }
 
-
     @GetMapping("/callback")
-    public ResponseEntity<?> googleCallback(
+    public ResponseEntity<ApiResponse<HandleGoogleCallbackResponse>> handleGoogleCallback(
             @RequestParam String code,
-            @RequestParam(required = false) String scope,
-            @RequestParam(required = false) String authuser,
-            @RequestParam(required = false) String prompt,
             HttpServletResponse response
     ) {
         logger.info("🔵 Google OAuth callback başladı - Code: {}", code.substring(0, Math.min(10, code.length())) + "...");
 
         try {
-            Map<String, Object> userInfo = googleAuthService.getUserInfoFromCode(code);
+            GoogleUserInfo userInfo = googleAuthService.getUserInfoFromCode(code);
             logger.info("🔵 Google'dan kullanıcı bilgileri alındı: {}", userInfo);
 
-            String email = (String) userInfo.get("email");
+            String email = userInfo.getEmail();
             logger.info("🔵 Email: {}", email);
 
-            String jwt = jwtService.generateTokenWithUserInfo(userInfo);
+            String jwt = JwtUtil.generateTokenWithUserInfo(userInfo);
             logger.info("🔵 JWT token oluşturuldu, uzunluk: {}", jwt.length());
 
-            // JWT'yi HttpOnly Cookie'ye koy
-            Cookie cookie = new Cookie("jwt", jwt);
+            Cookie cookie = new Cookie(applicationJWTName, jwt);
             cookie.setHttpOnly(true);
             cookie.setSecure(false); // Development için false, production'da true yap
             cookie.setPath("/");
@@ -82,90 +68,46 @@ public class GoogleAuthController {
             response.addCookie(cookie);
             logger.info("🔵 Cookie eklendi: jwt={}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
 
-            return ResponseEntity.ok(Map.of(
-                    "jwt", jwt,
-                    "user", userInfo
-            ));
+            ApiResponse<HandleGoogleCallbackResponse> apiResponse = new ApiResponse<>(true, "Handle google callback succeed!", new HandleGoogleCallbackResponse(jwt, userInfo));
+            return ResponseEntity.ok(apiResponse);
+
         } catch (Exception e) {
             logger.error("🔴 Google OAuth callback hatası: ", e);
-            return ResponseEntity.status(500).body("OAuth callback error: " + e.getMessage());
+            ApiResponse<HandleGoogleCallbackResponse> apiResponse = new ApiResponse<>(false, "OAuth callback error: " + e.getMessage(), null);
+
+            return ResponseEntity.status(500).body(apiResponse);
         }
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> currentUser(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<GoogleUserInfo>> getCurrentUser() {
         logger.info("🔵 /auth/me endpoint'i çağrıldı");
 
-        // Cookie'den JWT token'ı al
-        String jwt = null;
-        if (request.getCookies() != null) {
-            logger.info("🔵 Gelen cookies sayısı: {}", request.getCookies().length);
-            for (Cookie cookie : request.getCookies()) {
-                logger.info("🔵 Cookie: {} = {}", cookie.getName(), cookie.getValue() != null ? cookie.getValue().substring(0, Math.min(20, cookie.getValue().length())) + "..." : "null");
-            }
+        GoogleUserInfo userInfo = JwtAuthenticationUtil.getUserInfo();
 
-            jwt = Arrays.stream(request.getCookies())
-                    .filter(c -> "jwt".equals(c.getName()))
-                    .findFirst()
-                    .map(Cookie::getValue)
-                    .orElse(null);
-        } else {
-            logger.warn("🔴 Hiç cookie gelmedi!");
-        }
+        logger.info("🔵 Frontend'e dönülen user info: {}", userInfo);
 
-        if (jwt == null) {
-            logger.warn("🔴 JWT token bulunamadı!");
-            return ResponseEntity.status(401).body("Unauthorized - No JWT token");
-        }
+        ApiResponse<GoogleUserInfo> apiResponse = new ApiResponse<>(true, "getCurrentUser succeed!", userInfo);
 
-        logger.info("🔵 JWT token bulundu: {}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
-
-        if (!jwtService.validateToken(jwt)) {
-            logger.warn("🔴 JWT token geçersiz!");
-            return ResponseEntity.status(401).body("Unauthorized - Invalid JWT token");
-        }
-
-        try {
-            // JWT'den kullanıcı bilgilerini çıkar
-            String email = jwtService.extractEmail(jwt);
-            String name = jwtService.extractName(jwt);
-            String picture = jwtService.extractPicture(jwt);
-
-            logger.info("🔵 JWT'den çıkarılan bilgiler - Email: {}, Name: {}, Picture: {}", email, name, picture);
-
-            Map<String, Object> userInfo = Map.of(
-                    "email", email,
-                    "name", name,
-                    "picture", picture
-            );
-
-            logger.info("🔵 Frontend'e dönülen user info: {}", userInfo);
-            return ResponseEntity.ok(userInfo);
-        } catch (Exception e) {
-            logger.error("🔴 JWT'den bilgi çıkarma hatası: ", e);
-            return ResponseEntity.status(500).body("Error extracting user info: " + e.getMessage());
-        }
+        return ResponseEntity.ok(apiResponse);
     }
-    //$2a$10$4h1mZTrMl3AbdST/GLmFtO081hWOited1H8mTdLbDSKeEYbRAWXrS
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
-        // Cookie'yi sil
-        Cookie cookie = new Cookie("jwt", null);
+    public ResponseEntity<ApiResponse<String>> logout(HttpServletResponse response) {
+        Cookie cookie = new Cookie(applicationJWTName, null);
         cookie.setHttpOnly(true);
         cookie.setSecure(false);
         cookie.setPath("/");
-        cookie.setMaxAge(0); // Hemen sil
+        cookie.setMaxAge(0);
         response.addCookie(cookie);
 
-        return ResponseEntity.ok("Logged out successfully");
+        return ResponseEntity.ok(new ApiResponse<>(true, "Logout succeed!", null));
     }
 
-    // ✅ Yeni endpoint
     @PostMapping("/validate-token")
-    public ResponseEntity<?> validateToken(@RequestBody ValidateTokenRequest request) {
-        boolean valid = jwtService.validateToken(request.getToken());
-        return ResponseEntity.ok(Map.of("valid", valid));
+    public ResponseEntity<ApiResponse<String>> validateToken(@RequestBody ValidateTokenRequest request) {
+        boolean valid = JwtUtil.validateToken(request.getToken());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Validate token succeed!", valid ? "Valid" : "Invalid"));
     }
 
 

@@ -1,19 +1,18 @@
 package com.salcatech.nfc_api.controller;
 
-import com.salcatech.nfc_api.model.Product;
+import com.salcatech.nfc_api.dto.ApiResponse;
+import com.salcatech.nfc_api.dto.request.UpdateFolderIdRequest;
 import com.salcatech.nfc_api.model.UserProduct;
-import com.salcatech.nfc_api.service.ProductService;
 import com.salcatech.nfc_api.service.UserProductService;
+import com.salcatech.nfc_api.util.JwtAuthenticationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 
 @RestController
@@ -44,98 +43,79 @@ public class UserProductController {
         return userProductService.save(userProduct);
     }
 
-    // 📌 1️⃣ İlk sahiplenme (sadece email set edilir)
     @PutMapping("/{id}/claim")
-    public ResponseEntity<?> claimProduct(
-            @PathVariable String id,
-            Authentication auth
+    public ResponseEntity<ApiResponse<String>> claimProduct(
+            @PathVariable String id
     ) {
 
-        String email = auth.getName();
+        String email = JwtAuthenticationUtil.getEmail();
 
         try {
             UserProduct product = userProductService.getById(id);
             String driveApplicationFolderId = product.getDriveApplicationFolderId() == null ? "" : product.getDriveApplicationFolderId();
 
-            // 1. Eğer ürün boşsa → sahiplen
             if (product.getEmail() == null || product.getEmail().isEmpty()) {
                 product.setEmail(email);
                 userProductService.save(product);
-
-                return ResponseEntity.ok(Map.of(
-                        "message", "Product successfully claimed",
-                        "status", "claimed",
-                        "folder_id", driveApplicationFolderId
-                ));
+                ApiResponse<String> apiResponse = new ApiResponse<>(true, "Product successfully claimed", driveApplicationFolderId);
+                return ResponseEntity.ok(apiResponse);
             }
 
-            // 2. Eğer zaten aynı kullanıcı sahiplenmişse
             if (product.getEmail().equals(email)) {
-
-                return ResponseEntity.ok(Map.of(
-                        "message", "Product already claimed by you",
-                        "status", "owner",
-                        "folder_id", driveApplicationFolderId
-                ));
+                ApiResponse<String> apiResponse = new ApiResponse<>(true, "Product already claimed by you", driveApplicationFolderId);
+                return ResponseEntity.ok(apiResponse);
             }
 
-            // 3. Başkası sahiplenmişse
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "message", "Product already claimed by another user",
-                    "status", "forbidden"
-            ));
+            ApiResponse<String> apiResponse = new ApiResponse<>(false, "Product already claimed by another user", null);
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResponse);
         } catch (NoSuchElementException e) {
-            // Eğer userProduct bulunamazsa 404 döner
+            ApiResponse<String> apiResponse = new ApiResponse<>(false, "UserProduct bulunamadı: id = " + id, null);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("UserProduct bulunamadı: id = " + id);
+                    .body(apiResponse);
         } catch (Exception e) {
-            // Beklenmeyen hata
+            ApiResponse<String> apiResponse = new ApiResponse<>(false, "Sunucu hatası: " + e.getMessage(), null);
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Sunucu hatası: " + e.getMessage());
+                    .body(apiResponse);
         }
 
 
     }
 
 
-    // 📌 2️⃣ Folder ID güncelleme (sadece sahibi yapabilir)
     @PutMapping("/{id}/update-folder-id")
-    public ResponseEntity<?> updateFolderId(
+    public ResponseEntity<ApiResponse<String>> updateFolderId(
             @PathVariable String id,
-            @RequestBody Map<String, String> body,
-            Authentication auth
+            @RequestBody UpdateFolderIdRequest request
     ) {
-        String email = auth.getName();
-        String newFolderId = body.get("folderId");
+        String email = JwtAuthenticationUtil.getEmail();
+        String newFolderId = request.getFolderId();
 
         if (newFolderId == null || newFolderId.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "message", "folderId is required"
-            ));
+            ApiResponse<String> apiResponse = new ApiResponse<>(false, "folderId is required", null);
+
+            return ResponseEntity.badRequest().body(apiResponse);
         }
 
         UserProduct product = userProductService.getById(id);
 
-        // Sahiplik kontrolü
         if (product.getEmail() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-                    "message", "Product has not been claimed yet"
-            ));
+            ApiResponse<String> apiResponse = new ApiResponse<>(false, "Product has not been claimed yet", null);
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResponse);
         }
 
         if (!product.getEmail().equals(email)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "message", "You are not allowed to update this product"
-            ));
+            ApiResponse<String> apiResponse = new ApiResponse<>(false, "You are not allowed to update this product", null);
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResponse);
         }
 
         product.setDriveApplicationFolderId(newFolderId);
         userProductService.save(product);
 
-        return ResponseEntity.ok(Map.of(
-                "message", "Folder ID updated successfully",
-                "status", "updated"
-        ));
+        return ResponseEntity.ok(new ApiResponse<>(true, "Folder ID updated successfully", newFolderId));
     }
 
     @DeleteMapping("/{id}")

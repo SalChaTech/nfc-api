@@ -14,7 +14,7 @@ import org.hibernate.annotations.GenericGenerator;
 public class UserProduct {
     @Id
     @GeneratedValue(generator = "ten-digit-id")
-    @GenericGenerator(name = "ten-digit-id", strategy = "com.salcatech.nfc_api.helper.UserProductIdGenerator")
+    @GenericGenerator(name = "ten-digit-id", strategy = "com.salcatech.nfc_api.util.UserProductIdGenerator")
     @Column(length = 10, updatable = false, nullable = false)
     private String id;
 

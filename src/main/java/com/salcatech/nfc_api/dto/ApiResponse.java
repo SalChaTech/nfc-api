@@ -6,9 +6,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
-public class UserAuthRequest {
-    private String productId;
-    private String password;
+public class ApiResponse<T> {
+    private boolean success;
+    private String message;
+    private T data;
+
 }

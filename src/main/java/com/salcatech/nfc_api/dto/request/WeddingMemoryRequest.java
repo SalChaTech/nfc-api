@@ -1,4 +1,4 @@
-package com.salcatech.nfc_api.dto;
+package com.salcatech.nfc_api.dto.request;
 
 import lombok.Data;
 

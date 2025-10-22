@@ -1,6 +1,6 @@
 package com.salcatech.nfc_api.controller;
 
-import com.salcatech.nfc_api.dto.WeddingMemoryRequest;
+import com.salcatech.nfc_api.dto.request.WeddingMemoryRequest;
 import com.salcatech.nfc_api.model.UserProduct;
 import com.salcatech.nfc_api.model.WeddingMemoryData;
 import com.salcatech.nfc_api.service.UserProductService;

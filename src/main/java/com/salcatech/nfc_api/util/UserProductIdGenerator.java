@@ -1,4 +1,4 @@
-package com.salcatech.nfc_api.helper;
+package com.salcatech.nfc_api.util;
 
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.id.IdentifierGenerator;
