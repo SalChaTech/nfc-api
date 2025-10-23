@@ -1,6 +1,7 @@
 package com.salcatech.nfc_api.util;
 
-import com.salcatech.nfc_api.dto.GoogleUserInfo;
+import com.salcatech.nfc_api.dto.GoogleUserInfoDTO;
+import com.salcatech.nfc_api.exception.InvalidJwtException;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,28 +11,31 @@ import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-import java.util.Map;
 
 @Component
 public class JwtUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
 
-    @Value("${jwt.secret}")
-    private static String jwtSecret;
+    private final String jwtSecret;
+    private final long jwtExpirationMs;
 
-    @Value("${jwt.expiration-ms}")
-    private static String jwtExpirationMs;
+    public JwtUtil(
+            @Value("${jwt.secret}") String jwtSecret,
+            @Value("${jwt.expiration-ms}") long jwtExpirationMs
+    ) {
+        this.jwtSecret = jwtSecret;
+        this.jwtExpirationMs = jwtExpirationMs;
+    }
 
-    private static SecretKey getSigningKey() {
+    private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
 
-    public static String generateTokenWithUserInfo(GoogleUserInfo userInfo) {
+    public String generateTokenWithUserInfo(GoogleUserInfoDTO userInfo) {
         logger.info("🔵 JWT token oluşturuluyor - UserInfo: {}", userInfo);
         String token = Jwts.builder().setSubject((String) userInfo.getEmail())
-                .claim("id", userInfo.getId())
                 .claim("name", userInfo.getName())
                 .claim("email", userInfo.getEmail())
                 .claim("access_token", userInfo.getAccessToken())
@@ -43,57 +47,56 @@ public class JwtUtil {
         return token;
     }
 
-    public static GoogleUserInfo extractUserInfo(String token) {
+    public GoogleUserInfoDTO extractUserInfo(String token) throws InvalidJwtException {
         Claims claims = parseClaims(token);
 
-        GoogleUserInfo userInfo = new GoogleUserInfo();
+        GoogleUserInfoDTO userInfo = new GoogleUserInfoDTO();
         userInfo.setEmail(claims.get("email", String.class));
         userInfo.setName(claims.get("name", String.class));
         userInfo.setRole(claims.get("role", String.class));
         userInfo.setAccessToken(claims.get("access_token", String.class));
-        userInfo.setId(claims.getId()); // subject = email ya da ID tercihine göre
 
         return userInfo;
     }
 
-    public static String extractSubject(String token) {
+    public String extractSubject(String token) throws InvalidJwtException {
         return parseClaims(token).getSubject();
     }
 
-    public static String extractRole(String token) {
+    public String extractRole(String token) throws InvalidJwtException {
         Object role = parseClaims(token).get("role"); // tek string olarak saklanıyor
         return role != null ? role.toString() : "ROLE_USER"; // default ROLE_USER
     }
 
-    public static String extractName(String token) {
+    public String extractName(String token) throws InvalidJwtException {
         return parseClaims(token).get("name", String.class);
     }
 
-    public static String extractEmail(String token) {
+    public String extractEmail(String token) throws InvalidJwtException {
         return parseClaims(token).get("email", String.class);
     }
 
-    public static String extractAccessToken(String token) {
+    public String extractAccessToken(String token) throws InvalidJwtException {
         return parseClaims(token).get("access_token", String.class);
     }
 
 
-    public static boolean validateToken(String token) {
-        try {
-            parseClaims(token);
-            return true;
-        } catch (JwtException e) {
-            logger.warn("🔴 Geçersiz JWT: {}", e.getMessage());
-            return false;
-        }
+    public boolean validateToken(String token) throws InvalidJwtException {
+        parseClaims(token);
+        return true;
+
     }
 
 
-    private static Claims parseClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+    private Claims parseClaims(String token) throws InvalidJwtException {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (Exception e) {
+            throw new InvalidJwtException("JWT parse edilemedi veya geçersiz: " + e.getMessage(), e);
+        }
     }
 }

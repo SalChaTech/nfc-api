@@ -1,14 +1,14 @@
 package com.salcatech.nfc_api.util;
 
-import com.salcatech.nfc_api.dto.GoogleUserInfo;
+import com.salcatech.nfc_api.dto.GoogleUserInfoDTO;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 public class JwtAuthenticationUtil {
-    public static GoogleUserInfo getUserInfo() {
+    public static GoogleUserInfoDTO getUserInfo() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication != null && authentication.getPrincipal() instanceof GoogleUserInfo user) {
+        if (authentication != null && authentication.getPrincipal() instanceof GoogleUserInfoDTO user) {
             return user;
         }
 
@@ -18,7 +18,7 @@ public class JwtAuthenticationUtil {
     public static String getAccessToken() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication != null && authentication.getPrincipal() instanceof GoogleUserInfo user) {
+        if (authentication != null && authentication.getPrincipal() instanceof GoogleUserInfoDTO user) {
             return user.getAccessToken();
         }
 
@@ -28,17 +28,11 @@ public class JwtAuthenticationUtil {
     public static String getEmail() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication != null && authentication.getPrincipal() instanceof GoogleUserInfo user) {
+        if (authentication != null && authentication.getPrincipal() instanceof GoogleUserInfoDTO user) {
             return user.getEmail();
         }
 
         return null;
     }
 
-    public static String getAccessToken(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof GoogleUserInfo user) {
-            return user.getAccessToken();
-        }
-        return null;
-    }
 }

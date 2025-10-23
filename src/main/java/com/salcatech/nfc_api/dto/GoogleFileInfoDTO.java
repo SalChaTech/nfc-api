@@ -6,7 +6,7 @@ import lombok.*;
 @NoArgsConstructor
 @Getter
 @Setter
-public class GoogleFileInfo {
+public class GoogleFileInfoDTO {
     String id;
     String name;
     Long size;

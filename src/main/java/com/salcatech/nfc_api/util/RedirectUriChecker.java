@@ -1,4 +1,4 @@
-package com.salcatech.nfc_api;
+package com.salcatech.nfc_api.util;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;

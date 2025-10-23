@@ -1,5 +1,6 @@
 package com.salcatech.nfc_api.service;
 
+import com.salcatech.nfc_api.exception.UserProductNotFoundException;
 import com.salcatech.nfc_api.model.UserProduct;
 import com.salcatech.nfc_api.repository.UserProductRepository;
 import org.springframework.stereotype.Service;
@@ -19,8 +20,8 @@ public class UserProductService {
         return userProductRepository.findAll();
     }
 
-    public UserProduct getById(String id) {
-        return userProductRepository.findById(id).orElseThrow();
+    public UserProduct getById(String id) throws UserProductNotFoundException {
+        return userProductRepository.findById(id).orElseThrow(UserProductNotFoundException::new);
     }
 
     public UserProduct save(UserProduct userProduct) {

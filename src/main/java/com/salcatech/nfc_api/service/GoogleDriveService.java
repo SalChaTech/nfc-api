@@ -11,7 +11,10 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.Permission;
-import com.salcatech.nfc_api.dto.GoogleFileInfo;
+import com.salcatech.nfc_api.dto.GoogleFileInfoDTO;
+import com.salcatech.nfc_api.exception.FolderNotGetOrCreateException;
+import com.salcatech.nfc_api.exception.ListFilesException;
+import com.salcatech.nfc_api.exception.UploadFileException;
 import com.salcatech.nfc_api.util.JwtAuthenticationUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -67,7 +70,7 @@ public class GoogleDriveService {
     /**
      * Uygulama klasörünü oluşturur veya mevcut olanı bulur
      */
-    public String getOrCreateApplicationFolder(String applicationFolderName) {
+    public String getOrCreateApplicationFolder(String applicationFolderName) throws FolderNotGetOrCreateException {
         try {
             logger.info("🔵 Uygulama klasörü aranıyor: {}", applicationFolderName);
             if (applicationFolderName == null || applicationFolderName.isEmpty()) {
@@ -113,11 +116,11 @@ public class GoogleDriveService {
 
         } catch (Exception e) {
             logger.error("🔴 Klasör oluşturma/bulma hatası: ", e);
-            throw new RuntimeException("Klasör işlemi hatası: " + e.getMessage());
+            throw new FolderNotGetOrCreateException(e.getMessage());
         }
     }
 
-    public String getOrCreateSubFolder(String parentFolderId, String subFolderName) {
+    public String getOrCreateSubFolder(String parentFolderId, String subFolderName) throws FolderNotGetOrCreateException {
         try {
             Drive driveService = getDriveService();
 
@@ -149,7 +152,7 @@ public class GoogleDriveService {
             return folder.getId();
         } catch (Exception e) {
             logger.error("🔴 SubFolder klasörü oluşturma hatası: {}", subFolderName, e);
-            throw new RuntimeException("SubFolder klasörü oluşturma hatası: " + e.getMessage());
+            throw new FolderNotGetOrCreateException(e.getMessage());
         }
     }
 
@@ -157,7 +160,7 @@ public class GoogleDriveService {
     /**
      * Dosya yükleme (Gerçek Google Drive API) - Uygulama klasörüne
      */
-    public GoogleFileInfo uploadFile(String applicationFolderName, String subFolderName, java.io.File file, String fileId, String fileName, String mimeType) {
+    public GoogleFileInfoDTO uploadFile(String applicationFolderName, String subFolderName, java.io.File file, String fileId, String fileName, String mimeType) throws UploadFileException {
         try {
             logger.info("🔵 Google Drive'a dosya yükleniyor: {}", fileName);
             logger.info("🔵 Dosya boyutu: {} bytes", file.length());
@@ -200,7 +203,7 @@ public class GoogleDriveService {
                 logger.info("🔵 Dosya başarıyla yüklendi: {}", uploadedFile.getName());
             }
 
-            return new GoogleFileInfo(uploadedFile.getId(),
+            return new GoogleFileInfoDTO(uploadedFile.getId(),
                     uploadedFile.getName(),
                     uploadedFile.getSize() != null ? uploadedFile.getSize() : 0,
                     uploadedFile.getWebViewLink() != null ? uploadedFile.getWebViewLink() : "",
@@ -211,7 +214,7 @@ public class GoogleDriveService {
 
         } catch (Exception e) {
             logger.error("🔴 Google Drive dosya yükleme hatası: ", e);
-            throw new RuntimeException("Dosya yükleme hatası: " + e.getMessage());
+            throw new UploadFileException(e.getMessage());
         }
     }
 
@@ -219,7 +222,7 @@ public class GoogleDriveService {
     /**
      * Uygulama klasöründeki dosyaları listele (Gerçek Google Drive API)
      */
-    public List<GoogleFileInfo> listFiles(String folderId) {
+    public List<GoogleFileInfoDTO> listFiles(String folderId) throws ListFilesException {
         try {
             String url = String.format(this.driveApiUrl, folderId, driveApiKey);
             ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
@@ -237,7 +240,7 @@ public class GoogleDriveService {
 
             return files.stream()
                     .map(file -> {
-                        GoogleFileInfo googleFileInfo = new GoogleFileInfo();
+                        GoogleFileInfoDTO googleFileInfo = new GoogleFileInfoDTO();
                         googleFileInfo.setId(file.get("id").toString());
                         googleFileInfo.setName(file.get("name").toString());
                         googleFileInfo.setMimeType(file.get("mimeType").toString());
@@ -247,7 +250,7 @@ public class GoogleDriveService {
                     .toList();
 
         } catch (Exception e) {
-            throw new RuntimeException("🔴 Google Drive klasör listeleme hatası: " + e.getMessage(), e);
+            throw new ListFilesException(e.getMessage());
         }
 
 
@@ -257,7 +260,7 @@ public class GoogleDriveService {
     /**
      * Dosya silme (Gerçek Google Drive API)
      */
-    public void deleteFile(String fileId) {
+    public void deleteFile(String fileId) throws ListFilesException {
         try {
             logger.info("🔵 Google Drive'dan dosya siliniyor: {}", fileId);
 
@@ -268,7 +271,7 @@ public class GoogleDriveService {
 
         } catch (Exception e) {
             logger.error("🔴 Google Drive dosya silme hatası: ", e);
-            throw new RuntimeException("Dosya silme hatası: " + e.getMessage());
+            throw new ListFilesException(e.getMessage());
         }
     }
 

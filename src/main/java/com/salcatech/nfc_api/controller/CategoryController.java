@@ -2,6 +2,7 @@ package com.salcatech.nfc_api.controller;
 
 import com.salcatech.nfc_api.model.Category;
 import com.salcatech.nfc_api.service.CategoryService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -24,12 +25,12 @@ public class CategoryController {
     public Category getById(@PathVariable Long id) {
         return categoryService.getById(id);
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public Category create(@RequestBody Category category) {
         return categoryService.save(category);
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         categoryService.delete(id);

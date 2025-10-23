@@ -1,6 +1,8 @@
 package com.salcatech.nfc_api.service;
 
-import com.salcatech.nfc_api.dto.GoogleUserInfo;
+import com.salcatech.nfc_api.dto.GoogleUserInfoDTO;
+import com.salcatech.nfc_api.exception.NotFetchedAccessTokenFromCode;
+import com.salcatech.nfc_api.exception.NotFetchedUserInfoFromAccessCode;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -29,9 +31,9 @@ public class GoogleAuthService {
     /**
      * Google OAuth code -> user info + access token
      */
-    public GoogleUserInfo getUserInfoFromCode(String code) {
+    public GoogleUserInfoDTO getUserInfoFromCode(String code) throws NotFetchedUserInfoFromAccessCode, NotFetchedAccessTokenFromCode {
         String accessToken = getAccessTokenFromCode(code);
-        GoogleUserInfo userInfo = getUserInfoFromAccessToken(accessToken);
+        GoogleUserInfoDTO userInfo = getUserInfoFromAccessToken(accessToken);
         userInfo.setAccessToken(accessToken);
         return userInfo;
     }
@@ -39,7 +41,7 @@ public class GoogleAuthService {
     /**
      * OAuth code -> Access Token
      */
-    private String getAccessTokenFromCode(String code) {
+    private String getAccessTokenFromCode(String code) throws NotFetchedAccessTokenFromCode {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("code", code);
         params.add("client_id", clientId);
@@ -60,7 +62,7 @@ public class GoogleAuthService {
         );
 
         if (tokenResponse == null || !tokenResponse.containsKey("access_token")) {
-            throw new RuntimeException("Google access token alınamadı.");
+            throw new NotFetchedAccessTokenFromCode();
         }
 
         return (String) tokenResponse.get("access_token");
@@ -69,22 +71,22 @@ public class GoogleAuthService {
     /**
      * Access token -> User info
      */
-    private GoogleUserInfo getUserInfoFromAccessToken(String accessToken) {
+    private GoogleUserInfoDTO getUserInfoFromAccessToken(String accessToken) throws NotFetchedUserInfoFromAccessCode {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
 
         HttpEntity<String> request = new HttpEntity<>(headers);
 
-        ResponseEntity<GoogleUserInfo> response = restTemplate.exchange(
-                "https://openidconnect.googleapis.com/v1/userinfo", // ✅ OpenID standard endpoint
+        ResponseEntity<GoogleUserInfoDTO> response = restTemplate.exchange(
+                "https://www.googleapis.com/oauth2/v2/userinfo", // ✅ OpenID standard endpoint
                 HttpMethod.GET,
                 request,
-                GoogleUserInfo.class
+                GoogleUserInfoDTO.class
         );
 
-        GoogleUserInfo userInfo = response.getBody();
+        GoogleUserInfoDTO userInfo = response.getBody();
         if (userInfo == null) {
-            throw new RuntimeException("Google user info alınamadı.");
+            throw new NotFetchedUserInfoFromAccessCode();
         }
 
         return userInfo;

@@ -15,3 +15,14 @@ create table wedding_memory_data (
                                   constraint fk_wedding_memory_data_user_product
                                       foreign key (user_product_id) references user_product(id)
 );
+
+
+
+create table place_to_visit_data (
+                                     id bigserial primary key,
+                                     user_product_id varchar(10) not null,
+                                     name varchar(255),
+                                     date date,
+                                     constraint fk_place_to_visit_data_user_product
+                                         foreign key (user_product_id) references user_product(id)
+);
